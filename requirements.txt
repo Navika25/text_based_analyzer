@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+scikit-learn
+tensorflow
+spacy
+nltk
+vaderSentiment
+textblob
+numpy
+pandas
+symspellpy
