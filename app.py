@@ -7,7 +7,7 @@ from model import HybridSentimentModel
 
 app = FastAPI(title="Hybrid Sentiment Analysis API")
 
-# Initialize model
+# Initialize model (mock mode ON → no tensorflow needed)
 sentiment_model = HybridSentimentModel(use_mock=True)
 
 class SentimentRequest(BaseModel):
@@ -15,16 +15,7 @@ class SentimentRequest(BaseModel):
 
 @app.post("/api/analyze")
 async def analyze_sentiment(request: SentimentRequest):
-    result = sentiment_model.predict(request.text)
-    score = result["score"]
-
-    # Convert score to probabilities (for UI compatibility)
-    if score > 0.2:
-        probs = [0.05, 0.1, 0.85]
-    elif score < -0.2:
-        probs = [0.85, 0.1, 0.05]
-    else:
-        probs = [0.2, 0.6, 0.2]
+    probs = sentiment_model.predict(request.text)
 
     labels = ["Negative", "Neutral", "Positive"]
     max_idx = probs.index(max(probs))
@@ -33,7 +24,17 @@ async def analyze_sentiment(request: SentimentRequest):
         "text": request.text,
         "sentiment": labels[max_idx],
         "confidence": round(probs[max_idx] * 100, 2),
-        "probabilities": probs   # IMPORTANT for frontend
+        "probabilities": {
+            "Negative": round(probs[0] * 100, 2),
+            "Neutral": round(probs[1] * 100, 2),
+            "Positive": round(probs[2] * 100, 2)
+        },
+        "model_components": {
+            "ml_layer": "SVM + Random Forest + Gradient Boosting",
+            "dl_layer": "Mock DL (No TensorFlow)",
+            "ml_contribution": 50,
+            "dl_contribution": 50
+        }
     }
 
 # Ensure static folder exists
@@ -42,5 +43,6 @@ os.makedirs("static", exist_ok=True)
 # Serve frontend
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
+# Local run (for your laptop)
 if __name__ == "__main__":
-    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("app:app", host="127.0.0.1", port=8000, reload=True)
