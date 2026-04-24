@@ -1,5 +1,4 @@
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import uvicorn
@@ -8,8 +7,7 @@ from model import HybridSentimentModel
 
 app = FastAPI(title="Hybrid Sentiment Analysis API")
 
-# Initialize the model 
-# (use_mock=True enables running out-of-the-box without waiting hours for DL weights)
+# Initialize model
 sentiment_model = HybridSentimentModel(use_mock=True)
 
 class SentimentRequest(BaseModel):
@@ -17,31 +15,24 @@ class SentimentRequest(BaseModel):
 
 @app.post("/api/analyze")
 async def analyze_sentiment(request: SentimentRequest):
-    probs = sentiment_model.predict(request.text)
-    
-    labels = ["Negative", "Neutral", "Positive"]
-    max_idx = probs.index(max(probs))
-    
+    result = sentiment_model.predict(request.text)
+
     return {
         "text": request.text,
-        "sentiment": labels[max_idx],
-        "confidence": round(probs[max_idx] * 100, 2),
-        "probabilities": {
-            "Negative": round(probs[0] * 100, 2),
-            "Neutral": round(probs[1] * 100, 2),
-            "Positive": round(probs[2] * 100, 2)
-        },
+        "sentiment": result["sentiment"],
+        "confidence": round(abs(result["score"]) * 100, 2),
+        "score": result["score"],
         "model_components": {
-            "ml_layer": "SVM + Random Forest + Gradient Boosting",
-            "dl_layer": "GloVe + Bi-LSTM + Self-Attention",
-            "ml_contribution": 50,
-            "dl_contribution": 50
+            "ml_layer": "VADER + TextBlob",
+            "dl_layer": "Removed (for deployment compatibility)",
+            "note": "Lightweight hybrid model used"
         }
     }
 
-# Make sure static dir exists
+# Ensure static folder exists
 os.makedirs("static", exist_ok=True)
 
+# Serve frontend
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
 if __name__ == "__main__":
